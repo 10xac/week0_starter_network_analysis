@@ -4,12 +4,12 @@ import glob
 import json
 import datetime
 from collections import Counter
-from collections import Counter
 
 import pandas as pd
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 import seaborn as sns
 from nltk.corpus import stopwords
+from wordcloud import WordCloud
 
 
 def break_combined_weeks(combined_weeks):
@@ -180,3 +180,65 @@ def convert_2_timestamp(column, data):
                 timestamp_.append(a.strftime('%Y-%m-%d %H:%M:%S'))
         return timestamp_
     else: print(f"{column} not in data")
+
+def get_tagged_users(df):
+    return df['msg_content'].str.findall(r'@U\w+').explode().unique().tolist()
+
+def map_userid_2_realname(user_profile: dict, comm_dict: dict, plot=False):
+    user_dict = {user['id']: user['real_name'] for user in user_profile['profile']}
+    
+    mapped_comm_dict = {user_dict.get(user_id, user_id): count for user_id, count in comm_dict.items()}
+
+    mapped_comm_df = pd.DataFrame(list(mapped_comm_dict.items()), columns=['LearnerName', '# of Msg sent in Threads']) \
+        .sort_values(by='# of Msg sent in Threads', ascending=False)
+
+    if plot:
+        mapped_comm_df.plot.bar(figsize=(15, 7.5), x='LearnerName', y='# of Msg sent in Threads')
+        plt.title('Student based on Message sent in thread', size=20)
+        plt.show()
+
+    return mapped_comm_df
+
+def get_top_20_user(data, channel='Random'):
+    data['sender_name'].value_counts()[:20].plot.bar(figsize=(15, 7.5))
+    plt.title(f'Top 20 Message Senders in #{channel} channels', size=15, fontweight='bold')
+    plt.xlabel("Sender Name", size=18); plt.ylabel("Frequency", size=14);
+    plt.xticks(size=12); plt.yticks(size=12);
+    plt.show()
+
+def draw_avg_reply_count(data, channel='Random'):
+    data.groupby('sender_name')['reply_count'].mean().sort_values(ascending=False)[:20] \
+        .plot(kind='bar', figsize=(15, 7.5))
+    plt.title(f'Average Number of reply count per Sender in #{channel}', size=20, fontweight='bold')
+    plt.xlabel("Sender Name", size=18); plt.ylabel("Frequency", size=18);
+    plt.xticks(size=14); plt.yticks(size=14);
+    plt.show()
+
+def draw_avg_reply_users_count(data, channel='Random'):
+    data.groupby('sender_name')['reply_users_count'].mean().sort_values(ascending=False)[:20].plot(kind='bar',
+        figsize=(15, 7.5))
+    plt.title(f'Average Number of reply user count per Sender in #{channel}', size=20, fontweight='bold')
+    plt.xlabel("Sender Name", size=18); plt.ylabel("Frequency", size=18);
+    plt.xticks(size=14); plt.yticks(size=14);
+    plt.show()
+
+def draw_wordcloud(msg_content, week):    
+    all_words = ' '.join(msg_content)
+    wordcloud = WordCloud(background_color='#975429', width=500, height=300, random_state=21, max_words=500,
+                          mode='RGBA', max_font_size=140, stopwords=stopwords.words('english')).generate(all_words)
+    plt.figure(figsize=(15, 7.5))
+    plt.imshow(wordcloud, interpolation="bilinear")
+    plt.axis('off')
+    plt.tight_layout()
+    plt.title(f'WordCloud for {week}', size=30)
+    plt.show()
+
+def draw_user_reaction(data, channel='General'):
+    data.groupby('sender_name')[['reply_count', 'reply_users_count']].sum() \
+        .sort_values(by='reply_count', ascending=False)[:10].plot(kind='bar', figsize=(15, 7.5))
+    plt.title(f'User with the most reaction in #{channel}', size=25)
+    plt.xlabel("Sender Name", size=18); plt.ylabel("Frequency", size=18);
+    plt.xticks(size=14); plt.yticks(size=14);
+    plt.show()
+
+
